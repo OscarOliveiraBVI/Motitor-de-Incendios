@@ -25,9 +25,9 @@
     "natureza": "Mato",
     "especieName": null,
     "familiaName": null,
-    "statusCode": 9,
-    "statusColor": "6ABF59",
-    "status": "Vigilância",
+    "statusCode": 8,
+    "statusColor": "BDBDBD",
+    "status": "Conclusão",
     "important": false,
     "localidade": "Vilarinho Vilarinho",
     "active": true,
@@ -68,7 +68,7 @@
       "sec": 1781772905
     },
     "updated": {
-      "sec": 1781789703
+      "sec": 1781788505
     }
   },
   "20260850400": {
