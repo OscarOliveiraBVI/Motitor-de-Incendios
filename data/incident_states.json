@@ -53,16 +53,16 @@
       "stationId": 1200576,
       "stationLocation": "Bragança (Aeródromo)",
       "stationDistance": 11.2,
-      "temperatura": 27.5,
-      "humidade": 43,
-      "intensidadeVento": 1.4,
-      "intensidadeVentoKM": 5,
+      "temperatura": 28.8,
+      "humidade": 36,
+      "intensidadeVento": 2.9,
+      "intensidadeVentoKM": 10.4,
       "idDireccVento": 5,
       "direccVento": "S",
       "precAcumulada": 0,
       "radiacao": null,
-      "pressao": 1014.1,
-      "date": "2026-06-18T10:00:00.000000Z"
+      "pressao": 1013.9,
+      "date": "2026-06-18T11:00:00.000000Z"
     },
     "created": {
       "sec": 1781772905
@@ -125,16 +125,16 @@
       "stationId": 1200576,
       "stationLocation": "Bragança (Aeródromo)",
       "stationDistance": 10.4,
-      "temperatura": 27.5,
-      "humidade": 43,
-      "intensidadeVento": 1.4,
-      "intensidadeVentoKM": 5,
+      "temperatura": 28.8,
+      "humidade": 36,
+      "intensidadeVento": 2.9,
+      "intensidadeVentoKM": 10.4,
       "idDireccVento": 5,
       "direccVento": "S",
       "precAcumulada": 0,
       "radiacao": null,
-      "pressao": 1014.1,
-      "date": "2026-06-18T10:00:00.000000Z"
+      "pressao": 1013.9,
+      "date": "2026-06-18T11:00:00.000000Z"
     },
     "created": {
       "sec": 1781779505
