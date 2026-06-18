@@ -202,6 +202,27 @@ def gh_write(path: str, content: any, sha: str | None, commit_msg: str) -> bool:
         return False
 
 
+def gh_write_and_get_sha(path: str, content, sha, commit_msg: str):
+    """Escreve ficheiro e devolve o novo SHA da resposta (evita gh_read extra)."""
+    if not GH_TOKEN or not GH_REPO:
+        return None
+    url = f"{GITHUB_API}/repos/{GH_REPO}/contents/{path}"
+    payload = {
+        "message": commit_msg,
+        "content": base64.b64encode(
+            json.dumps(content, ensure_ascii=False, indent=2).encode("utf-8")
+        ).decode("utf-8"),
+    }
+    if sha:
+        payload["sha"] = sha
+    try:
+        r = requests.put(url, headers=_gh_headers(), json=payload, timeout=15)
+        r.raise_for_status()
+        return r.json().get("content", {}).get("sha")
+    except Exception:
+        return None
+
+
 def github_configured() -> bool:
     return bool(GH_TOKEN and GH_REPO)
 
@@ -340,6 +361,7 @@ def poll():
             send_discord(msg)
 
     # Actualiza session_state
+    changed = (new_states != old_states)
     st.session_state.incident_states = new_states
     st.session_state.last_refresh    = datetime.now().strftime("%H:%M:%S")
 
@@ -347,30 +369,27 @@ def poll():
         st.session_state.log = new_entries + st.session_state.log
         st.session_state.log = st.session_state.log[:500]
 
-        # ── Persistir log no GitHub ──────────────────────────────────────────
-        if github_configured():
-            ok = gh_write(
+    if github_configured():
+        # Persistir log -- só quando há eventos novos
+        if new_entries:
+            new_sha = gh_write_and_get_sha(
                 GH_LOG_PATH,
                 st.session_state.log,
                 st.session_state.get("log_sha"),
-                f"chore: {len(new_entries)} novo(s) evento(s) — {ts}",
+                f"log: {len(new_entries)} evento(s) — {ts}",
             )
-            if ok:
-                # Actualizar sha para o próximo write não falhar com conflito
-                _, new_sha = gh_read(GH_LOG_PATH)
+            if new_sha:
                 st.session_state.log_sha = new_sha
-
-    # ── Persistir estado activo no GitHub (sempre, para sobreviver a restarts) ──
-    if github_configured():
-        ok = gh_write(
-            GH_STATE_PATH,
-            st.session_state.incident_states,
-            st.session_state.get("incident_states_sha"),
-            f"chore: estado atualizado — {ts}",
-        )
-        if ok:
-            _, new_sha = gh_read(GH_STATE_PATH)
-            st.session_state.incident_states_sha = new_sha
+        # Persistir estado -- só quando mudou algo
+        if changed:
+            new_sha = gh_write_and_get_sha(
+                GH_STATE_PATH,
+                st.session_state.incident_states,
+                st.session_state.get("incident_states_sha"),
+                f"state: atualizado — {ts}",
+            )
+            if new_sha:
+                st.session_state.incident_states_sha = new_sha
 
 
 # ─── Sidebar ───────────────────────────────────────────────────────────────────
