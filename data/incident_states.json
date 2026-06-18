@@ -13,8 +13,8 @@
     "location": "Bragança, Bragança, Espinhosela",
     "aerial": 0,
     "meios_aquaticos": 0,
-    "man": 13,
-    "terrain": 4,
+    "man": 15,
+    "terrain": 5,
     "district": "Bragança",
     "concelho": "Bragança",
     "freguesia": "Espinhosela",
@@ -68,7 +68,7 @@
       "sec": 1781772905
     },
     "updated": {
-      "sec": 1781789703
+      "sec": 1781790603
     }
   },
   "20260850400": {
@@ -85,8 +85,8 @@
     "location": "Bragança, Bragança, França",
     "aerial": 0,
     "meios_aquaticos": 0,
-    "man": 13,
-    "terrain": 4,
+    "man": 15,
+    "terrain": 5,
     "district": "Bragança",
     "concelho": "Bragança",
     "freguesia": "França",
@@ -140,7 +140,7 @@
       "sec": 1781779505
     },
     "updated": {
-      "sec": 1781788205
+      "sec": 1781790603
     }
   }
 }
