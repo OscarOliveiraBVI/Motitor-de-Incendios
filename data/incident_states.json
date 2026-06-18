@@ -13,8 +13,8 @@
     "location": "Bragança, Bragança, Espinhosela",
     "aerial": 0,
     "meios_aquaticos": 0,
-    "man": 11,
-    "terrain": 5,
+    "man": 2,
+    "terrain": 1,
     "district": "Bragança",
     "concelho": "Bragança",
     "freguesia": "Espinhosela",
@@ -53,22 +53,22 @@
       "stationId": 1200576,
       "stationLocation": "Bragança (Aeródromo)",
       "stationDistance": 11.2,
-      "temperatura": 31.2,
-      "humidade": 32,
-      "intensidadeVento": 4.5,
-      "intensidadeVentoKM": 16.2,
-      "idDireccVento": 7,
-      "direccVento": "W",
+      "temperatura": 31.6,
+      "humidade": 26,
+      "intensidadeVento": 4.8,
+      "intensidadeVentoKM": 17.3,
+      "idDireccVento": 6,
+      "direccVento": "SW",
       "precAcumulada": 0,
       "radiacao": null,
-      "pressao": 1011.9,
-      "date": "2026-06-18T14:00:00.000000Z"
+      "pressao": 1010.8,
+      "date": "2026-06-18T16:00:00.000000Z"
     },
     "created": {
       "sec": 1781772905
     },
     "updated": {
-      "sec": 1781796603
+      "sec": 1781799304
     }
   },
   "20260850400": {
@@ -85,8 +85,8 @@
     "location": "Bragança, Bragança, França",
     "aerial": 0,
     "meios_aquaticos": 0,
-    "man": 15,
-    "terrain": 5,
+    "man": 2,
+    "terrain": 1,
     "district": "Bragança",
     "concelho": "Bragança",
     "freguesia": "França",
@@ -125,22 +125,22 @@
       "stationId": 1200576,
       "stationLocation": "Bragança (Aeródromo)",
       "stationDistance": 10.4,
-      "temperatura": 31.2,
-      "humidade": 32,
-      "intensidadeVento": 4.5,
-      "intensidadeVentoKM": 16.2,
-      "idDireccVento": 7,
-      "direccVento": "W",
+      "temperatura": 31.6,
+      "humidade": 26,
+      "intensidadeVento": 4.8,
+      "intensidadeVentoKM": 17.3,
+      "idDireccVento": 6,
+      "direccVento": "SW",
       "precAcumulada": 0,
       "radiacao": null,
-      "pressao": 1011.9,
-      "date": "2026-06-18T14:00:00.000000Z"
+      "pressao": 1010.8,
+      "date": "2026-06-18T16:00:00.000000Z"
     },
     "created": {
       "sec": 1781779505
     },
     "updated": {
-      "sec": 1781790603
+      "sec": 1781800504
     }
   }
 }
