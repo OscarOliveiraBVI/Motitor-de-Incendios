@@ -1,6 +1,5 @@
 import time
 import requests
-import json
 import unicodedata
 from datetime import datetime
 import streamlit as st
@@ -23,12 +22,10 @@ html, body, [data-testid="stAppViewContainer"] {
     color: #e8eaf0;
     font-family: 'Inter', sans-serif;
 }
-
 [data-testid="stSidebar"] {
     background-color: #161b27;
     border-right: 1px solid #1e2535;
 }
-
 .metric-card {
     background: #161b27;
     border: 1px solid #1e2535;
@@ -50,7 +47,6 @@ html, body, [data-testid="stAppViewContainer"] {
     text-transform: uppercase;
     letter-spacing: 0.08em;
 }
-
 .inc-card {
     background: #161b27;
     border: 1px solid #1e2535;
@@ -58,10 +54,6 @@ html, body, [data-testid="stAppViewContainer"] {
     border-radius: 8px;
     padding: 16px 20px;
     margin-bottom: 14px;
-}
-.inc-card.resolved {
-    border-left-color: #22c55e;
-    opacity: 0.7;
 }
 .inc-header {
     display: flex;
@@ -84,10 +76,9 @@ html, body, [data-testid="stAppViewContainer"] {
     color: #ff7070;
     white-space: nowrap;
 }
-.inc-status.dominio { background: #f97316aa; color: #fed7aa; }
+.inc-status.dominio  { background: #f97316aa; color: #fed7aa; }
 .inc-status.extincao { background: #22c55e33; color: #86efac; }
-.inc-status.conclusao { background: #22c55e55; color: #bbf7d0; }
-
+.inc-status.conclusao{ background: #22c55e55; color: #bbf7d0; }
 .inc-meta {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -96,11 +87,9 @@ html, body, [data-testid="stAppViewContainer"] {
 }
 .meta-item { color: #9aa3b8; }
 .meta-item span { color: #cbd5e1; font-weight: 500; }
-
 .badge-aerial { color: #60a5fa; }
 .badge-men    { color: #f472b6; }
 .badge-truck  { color: #fb923c; }
-
 .timestamp-bar {
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.72rem;
@@ -108,7 +97,15 @@ html, body, [data-testid="stAppViewContainer"] {
     text-align: right;
     margin-bottom: 8px;
 }
-
+.discord-status {
+    font-size: 0.78rem;
+    padding: 6px 12px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    text-align: center;
+}
+.discord-ok  { background: #22c55e22; color: #86efac; border: 1px solid #22c55e44; }
+.discord-off { background: #ff4d4d22; color: #fca5a5; border: 1px solid #ff4d4d44; }
 div[data-testid="stButton"] button {
     background-color: #ff4d4d;
     color: #fff;
@@ -118,10 +115,7 @@ div[data-testid="stButton"] button {
     font-size: 0.85rem;
     padding: 0.45rem 1.2rem;
 }
-div[data-testid="stButton"] button:hover {
-    background-color: #e03c3c;
-}
-
+div[data-testid="stButton"] button:hover { background-color: #e03c3c; }
 h1 { font-size: 1.5rem !important; font-weight: 700 !important; color: #fff !important; }
 h2 { font-size: 1.1rem !important; font-weight: 600 !important; color: #cbd5e1 !important; margin-top: 1.4rem !important; }
 </style>
@@ -141,6 +135,9 @@ CONCELHOS_ALVO_DEFAULT = [
     "Vimioso",
     "Vinhais",
 ]
+
+# ─── Webhook lido dos Secrets (nunca exposto na UI) ────────────────────────────
+WEBHOOK_URL: str = st.secrets.get("DISCORD_WEBHOOK_URL", "")
 
 # ─── Helpers ───────────────────────────────────────────────────────────────────
 def normalize(s: str) -> str:
@@ -169,11 +166,12 @@ def status_class(status: str) -> str:
     return ""
 
 
-def send_discord(webhook_url: str, message: str):
-    if not webhook_url:
+def send_discord(message: str):
+    """Envia sempre para o webhook definido nos Secrets."""
+    if not WEBHOOK_URL:
         return
     try:
-        requests.post(webhook_url, json={"content": message}, timeout=10)
+        requests.post(WEBHOOK_URL, json={"content": message}, timeout=10)
     except requests.RequestException:
         pass
 
@@ -220,18 +218,23 @@ if "log" not in st.session_state:
 if "last_refresh" not in st.session_state:
     st.session_state.last_refresh = None
 if "auto_refresh" not in st.session_state:
-    st.session_state.auto_refresh = False
+    st.session_state.auto_refresh = True
+if "refresh_interval" not in st.session_state:
+    st.session_state.refresh_interval = 30
+if "selected_concelhos" not in st.session_state:
+    st.session_state.selected_concelhos = list(CONCELHOS_ALVO_DEFAULT)
 
 
-def poll(concelhos: list, webhook_url: str):
-    """Consulta a API e actualiza o estado."""
-    normalized_targets = [normalize(c) for c in concelhos]
-    incidents = get_incidents()
-    now = datetime.now().strftime("%H:%M")
+def poll():
+    """Consulta a API, compara com estado anterior e notifica Discord se necessário."""
+    concelhos     = st.session_state.selected_concelhos
+    normalized_t  = [normalize(c) for c in concelhos]
+    incidents     = get_incidents()
+    now           = datetime.now().strftime("%H:%M")
 
-    filtered = [
+    filtered   = [
         inc for inc in incidents
-        if any(t in normalize(inc.get("concelho", "")) for t in normalized_targets)
+        if any(t in normalize(inc.get("concelho", "")) for t in normalized_t)
     ]
     new_states = {str(inc["id"]): inc for inc in filtered}
     old_states = st.session_state.incident_states
@@ -241,7 +244,7 @@ def poll(concelhos: list, webhook_url: str):
         if iid not in old_states:
             msg = format_new(inc)
             st.session_state.log.insert(0, {"type": "new", "time": now, "msg": msg, "inc": inc})
-            send_discord(webhook_url, msg)
+            send_discord(msg)
 
     # Mudanças de estado
     for iid, inc in new_states.items():
@@ -251,32 +254,31 @@ def poll(concelhos: list, webhook_url: str):
             if old_s != new_s:
                 msg = format_status(inc, old_s, new_s, now)
                 st.session_state.log.insert(0, {"type": "status", "time": now, "msg": msg, "inc": inc})
-                send_discord(webhook_url, msg)
+                send_discord(msg)
 
-    # Resolvidos
+    # Resolvidos / desaparecidos da lista ativa
     for iid, inc in old_states.items():
         if iid not in new_states and inc.get("status") not in ["Extinção", "Conclusão"]:
             msg = format_resolved(inc, now)
             st.session_state.log.insert(0, {"type": "resolved", "time": now, "msg": msg, "inc": inc})
-            send_discord(webhook_url, msg)
+            send_discord(msg)
 
     st.session_state.incident_states = new_states
-    st.session_state.last_refresh = datetime.now().strftime("%H:%M:%S")
-    # Limitar log a 200 entradas
-    st.session_state.log = st.session_state.log[:200]
+    st.session_state.last_refresh    = datetime.now().strftime("%H:%M:%S")
+    st.session_state.log             = st.session_state.log[:200]
 
 
 # ─── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("## ⚙️ Configurações")
 
-    webhook_url = st.text_input(
-        "Discord Webhook URL",
-        type="password",
-        placeholder="https://discord.com/api/webhooks/...",
-        help="Opcional — se vazio as notificações Discord estão desativadas.",
-    )
+    # Estado do webhook (apenas indica se está configurado, nunca mostra o valor)
+    if WEBHOOK_URL:
+        st.markdown('<div class="discord-status discord-ok">✅ Discord configurado</div>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="discord-status discord-off">⚠️ Discord não configurado<br><small>Adicione DISCORD_WEBHOOK_URL aos Secrets</small></div>', unsafe_allow_html=True)
 
+    st.divider()
     st.markdown("**Concelhos monitorizados**")
     selected = []
     for c in CONCELHOS_ALVO_DEFAULT:
@@ -284,7 +286,7 @@ with st.sidebar:
             selected.append(c)
 
     custom = st.text_input(
-        "Adicionar concelho (separado por vírgulas)",
+        "Adicionar concelho",
         placeholder="ex: Chaves, Valpaços",
     )
     if custom:
@@ -293,18 +295,22 @@ with st.sidebar:
             if item and item not in selected:
                 selected.append(item)
 
+    st.session_state.selected_concelhos = selected
+
     st.divider()
-    refresh_interval = st.select_slider(
+    st.session_state.refresh_interval = st.select_slider(
         "Intervalo de atualização (s)",
         options=[10, 15, 30, 60, 120],
-        value=30,
+        value=st.session_state.refresh_interval,
     )
-    auto = st.toggle("Auto-atualização", value=st.session_state.auto_refresh)
-    st.session_state.auto_refresh = auto
+    st.session_state.auto_refresh = st.toggle(
+        "Auto-atualização",
+        value=st.session_state.auto_refresh,
+    )
 
     st.divider()
     if st.button("🔄 Atualizar agora", use_container_width=True):
-        poll(selected, webhook_url)
+        poll()
         st.rerun()
 
     if st.button("🗑️ Limpar registo", use_container_width=True):
@@ -323,17 +329,17 @@ with col_time:
         )
 
 # ─── Métricas ──────────────────────────────────────────────────────────────────
-active = st.session_state.incident_states
-total_ops = sum(int(i.get("man", 0) or 0) for i in active.values())
-total_trucks = sum(int(i.get("terrain", 0) or 0) for i in active.values())
-total_aerial = sum(int(i.get("aerial", 0) or 0) for i in active.values())
+active      = st.session_state.incident_states
+total_ops   = sum(int(i.get("man",     0) or 0) for i in active.values())
+total_trucks= sum(int(i.get("terrain", 0) or 0) for i in active.values())
+total_aerial= sum(int(i.get("aerial",  0) or 0) for i in active.values())
 
 m1, m2, m3, m4 = st.columns(4)
 for col, val, label in [
-    (m1, len(active), "Incêndios ativos"),
-    (m2, total_ops, "Operacionais"),
-    (m3, total_trucks, "Veículos"),
-    (m4, total_aerial, "Meios aéreos"),
+    (m1, len(active),    "Incêndios ativos"),
+    (m2, total_ops,      "Operacionais"),
+    (m3, total_trucks,   "Veículos"),
+    (m4, total_aerial,   "Meios aéreos"),
 ]:
     col.markdown(
         f'<div class="metric-card"><div class="metric-value">{val}</div>'
@@ -347,7 +353,7 @@ if not active:
     st.info("Nenhum incêndio ativo nos concelhos monitorizados.")
 else:
     for iid, inc in sorted(active.items(), key=lambda x: x[1].get("date", ""), reverse=True):
-        sc = status_class(inc.get("status", ""))
+        sc       = status_class(inc.get("status", ""))
         maps_url = f"https://www.google.com/maps/search/?api=1&query={inc.get('lat','')},{inc.get('lng','')}"
         st.markdown(f"""
 <div class="inc-card">
@@ -375,11 +381,13 @@ if not st.session_state.log:
 else:
     for entry in st.session_state.log[:50]:
         icon = {"new": "🔥", "status": "🔄", "resolved": "✅"}.get(entry["type"], "ℹ️")
-        with st.expander(f"{icon} [{entry['time']}] {entry['inc'].get('location','N/A')} — {entry['inc'].get('concelho','N/A')}"):
+        with st.expander(
+            f"{icon} [{entry['time']}] {entry['inc'].get('location','N/A')} — {entry['inc'].get('concelho','N/A')}"
+        ):
             st.code(entry["msg"], language=None)
 
 # ─── Auto-refresh ──────────────────────────────────────────────────────────────
 if st.session_state.auto_refresh:
-    time.sleep(refresh_interval)
-    poll(selected, webhook_url)
+    time.sleep(st.session_state.refresh_interval)
+    poll()
     st.rerun()
