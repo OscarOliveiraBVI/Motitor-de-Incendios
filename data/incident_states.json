@@ -1,1 +1,146 @@
-{}
+{
+  "20260849742": {
+    "_id": {
+      "$id": "20260849742"
+    },
+    "id": "20260849742",
+    "coords": true,
+    "dateTime": {
+      "sec": 1781772300
+    },
+    "date": "18-06-2026",
+    "hour": "09:45",
+    "location": "Bragança, Bragança, Espinhosela",
+    "aerial": 0,
+    "meios_aquaticos": 0,
+    "man": 13,
+    "terrain": 4,
+    "district": "Bragança",
+    "concelho": "Bragança",
+    "freguesia": "Espinhosela",
+    "dico": "0402",
+    "lat": 41.908018,
+    "lng": -6.825455,
+    "naturezaCode": "3103",
+    "natureza": "Mato",
+    "especieName": null,
+    "familiaName": null,
+    "statusCode": 7,
+    "statusColor": "6ABF59",
+    "status": "Em Resolução",
+    "important": false,
+    "localidade": "Vilarinho Vilarinho",
+    "active": true,
+    "sadoId": "20260849742",
+    "sharepointId": 20260849742,
+    "extra": null,
+    "disappear": false,
+    "icnf": null,
+    "detailLocation": null,
+    "kml": null,
+    "kmlVost": null,
+    "pco": null,
+    "cos": null,
+    "heliFight": 0,
+    "heliCoord": 0,
+    "planeFight": 0,
+    "anepcDirectUpdate": false,
+    "regiao": "Norte",
+    "sub_regiao": "Terras de Trás-os-Montes",
+    "nearestWeatherStationId": 1200576,
+    "isFire": true,
+    "weather": {
+      "stationId": 1200576,
+      "stationLocation": "Bragança (Aeródromo)",
+      "stationDistance": 11.2,
+      "temperatura": 29.4,
+      "humidade": 35,
+      "intensidadeVento": 3.6,
+      "intensidadeVentoKM": 13,
+      "idDireccVento": 5,
+      "direccVento": "S",
+      "precAcumulada": 0,
+      "radiacao": null,
+      "pressao": 1013.5,
+      "date": "2026-06-18T12:00:00.000000Z"
+    },
+    "created": {
+      "sec": 1781772905
+    },
+    "updated": {
+      "sec": 1781782805
+    }
+  },
+  "20260850400": {
+    "_id": {
+      "$id": "20260850400"
+    },
+    "id": "20260850400",
+    "coords": true,
+    "dateTime": {
+      "sec": 1781779020
+    },
+    "date": "18-06-2026",
+    "hour": "11:37",
+    "location": "Bragança, Bragança, França",
+    "aerial": 0,
+    "meios_aquaticos": 0,
+    "man": 13,
+    "terrain": 4,
+    "district": "Bragança",
+    "concelho": "Bragança",
+    "freguesia": "França",
+    "dico": "0402",
+    "lat": 41.94394,
+    "lng": -6.755658,
+    "naturezaCode": "3101",
+    "natureza": "Povoamento Florestal",
+    "especieName": null,
+    "familiaName": null,
+    "statusCode": 7,
+    "statusColor": "6ABF59",
+    "status": "Em Resolução",
+    "important": false,
+    "localidade": "Montezinho Montezinho",
+    "active": true,
+    "sadoId": "20260850400",
+    "sharepointId": 20260850400,
+    "extra": null,
+    "disappear": false,
+    "icnf": null,
+    "detailLocation": null,
+    "kml": null,
+    "kmlVost": null,
+    "pco": null,
+    "cos": null,
+    "heliFight": 0,
+    "heliCoord": 0,
+    "planeFight": 0,
+    "anepcDirectUpdate": false,
+    "regiao": "Norte",
+    "sub_regiao": "Terras de Trás-os-Montes",
+    "nearestWeatherStationId": 1200576,
+    "isFire": true,
+    "weather": {
+      "stationId": 1200576,
+      "stationLocation": "Bragança (Aeródromo)",
+      "stationDistance": 10.4,
+      "temperatura": 29.4,
+      "humidade": 35,
+      "intensidadeVento": 3.6,
+      "intensidadeVentoKM": 13,
+      "idDireccVento": 5,
+      "direccVento": "S",
+      "precAcumulada": 0,
+      "radiacao": null,
+      "pressao": 1013.5,
+      "date": "2026-06-18T12:00:00.000000Z"
+    },
+    "created": {
+      "sec": 1781779505
+    },
+    "updated": {
+      "sec": 1781784903
+    }
+  }
+}
