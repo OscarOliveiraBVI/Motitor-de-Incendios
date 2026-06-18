@@ -1,6 +1,8 @@
 import time
 import requests
 import unicodedata
+import json
+import base64
 from datetime import datetime
 import streamlit as st
 
@@ -97,15 +99,16 @@ html, body, [data-testid="stAppViewContainer"] {
     text-align: right;
     margin-bottom: 8px;
 }
-.discord-status {
+.status-badge {
     font-size: 0.78rem;
     padding: 6px 12px;
     border-radius: 6px;
     margin-bottom: 8px;
     text-align: center;
 }
-.discord-ok  { background: #22c55e22; color: #86efac; border: 1px solid #22c55e44; }
-.discord-off { background: #ff4d4d22; color: #fca5a5; border: 1px solid #ff4d4d44; }
+.badge-ok  { background: #22c55e22; color: #86efac; border: 1px solid #22c55e44; }
+.badge-off { background: #ff4d4d22; color: #fca5a5; border: 1px solid #ff4d4d44; }
+.badge-warn{ background: #f9731622; color: #fed7aa; border: 1px solid #f9731644; }
 div[data-testid="stButton"] button {
     background-color: #ff4d4d;
     color: #fff;
@@ -136,10 +139,74 @@ CONCELHOS_ALVO_DEFAULT = [
     "Vinhais",
 ]
 
-# ─── Webhook lido dos Secrets (nunca exposto na UI) ────────────────────────────
-WEBHOOK_URL: str = st.secrets.get("DISCORD_WEBHOOK_URL", "")
+# ─── Secrets ───────────────────────────────────────────────────────────────────
+WEBHOOK_URL:  str = st.secrets.get("DISCORD_WEBHOOK_URL", "")
+GH_TOKEN:     str = st.secrets.get("GITHUB_TOKEN", "")
+GH_REPO:      str = st.secrets.get("GITHUB_REPO", "")        # ex: "utilizador/repositorio"
+GH_LOG_PATH:  str = st.secrets.get("GITHUB_LOG_PATH", "data/incident_log.json")
+GH_STATE_PATH:str = st.secrets.get("GITHUB_STATE_PATH", "data/incident_states.json")
 
-# ─── Helpers ───────────────────────────────────────────────────────────────────
+GITHUB_API = "https://api.github.com"
+
+
+# ─── GitHub helpers ────────────────────────────────────────────────────────────
+def _gh_headers() -> dict:
+    return {
+        "Authorization": f"Bearer {GH_TOKEN}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+
+
+def gh_read(path: str) -> tuple[any, str | None]:
+    """
+    Lê um ficheiro JSON do repositório.
+    Devolve (conteúdo_parsed, sha) ou (valor_default, None) se não existir.
+    """
+    if not GH_TOKEN or not GH_REPO:
+        return None, None
+    url = f"{GITHUB_API}/repos/{GH_REPO}/contents/{path}"
+    try:
+        r = requests.get(url, headers=_gh_headers(), timeout=10)
+        if r.status_code == 404:
+            return None, None
+        r.raise_for_status()
+        data = r.json()
+        content = json.loads(base64.b64decode(data["content"]).decode("utf-8"))
+        return content, data["sha"]
+    except Exception:
+        return None, None
+
+
+def gh_write(path: str, content: any, sha: str | None, commit_msg: str) -> bool:
+    """
+    Cria ou actualiza um ficheiro JSON no repositório.
+    sha=None cria o ficheiro; sha=<valor> actualiza.
+    """
+    if not GH_TOKEN or not GH_REPO:
+        return False
+    url = f"{GITHUB_API}/repos/{GH_REPO}/contents/{path}"
+    payload = {
+        "message": commit_msg,
+        "content": base64.b64encode(
+            json.dumps(content, ensure_ascii=False, indent=2).encode("utf-8")
+        ).decode("utf-8"),
+    }
+    if sha:
+        payload["sha"] = sha
+    try:
+        r = requests.put(url, headers=_gh_headers(), json=payload, timeout=15)
+        r.raise_for_status()
+        return True
+    except Exception:
+        return False
+
+
+def github_configured() -> bool:
+    return bool(GH_TOKEN and GH_REPO)
+
+
+# ─── Helpers gerais ────────────────────────────────────────────────────────────
 def normalize(s: str) -> str:
     if not isinstance(s, str):
         return ""
@@ -167,7 +234,6 @@ def status_class(status: str) -> str:
 
 
 def send_discord(message: str):
-    """Envia sempre para o webhook definido nos Secrets."""
     if not WEBHOOK_URL:
         return
     try:
@@ -212,25 +278,31 @@ def format_resolved(inc: dict, now: str) -> str:
 
 # ─── Estado da Sessão ──────────────────────────────────────────────────────────
 if "incident_states" not in st.session_state:
-    st.session_state.incident_states = {}
+    # Ao arrancar, tenta carregar o estado guardado no GitHub
+    saved, sha = gh_read(GH_STATE_PATH)
+    st.session_state.incident_states     = saved if isinstance(saved, dict) else {}
+    st.session_state.incident_states_sha = sha
+
 if "log" not in st.session_state:
-    st.session_state.log = []
-if "last_refresh" not in st.session_state:
-    st.session_state.last_refresh = None
-if "auto_refresh" not in st.session_state:
-    st.session_state.auto_refresh = True
-if "refresh_interval" not in st.session_state:
-    st.session_state.refresh_interval = 30
+    # Ao arrancar, tenta carregar o log persistido no GitHub
+    saved_log, log_sha = gh_read(GH_LOG_PATH)
+    st.session_state.log     = saved_log if isinstance(saved_log, list) else []
+    st.session_state.log_sha = log_sha
+
+if "last_refresh"     not in st.session_state: st.session_state.last_refresh     = None
+if "auto_refresh"     not in st.session_state: st.session_state.auto_refresh     = True
+if "refresh_interval" not in st.session_state: st.session_state.refresh_interval = 30
 if "selected_concelhos" not in st.session_state:
     st.session_state.selected_concelhos = list(CONCELHOS_ALVO_DEFAULT)
 
 
+# ─── Poll principal ────────────────────────────────────────────────────────────
 def poll():
-    """Consulta a API, compara com estado anterior e notifica Discord se necessário."""
-    concelhos     = st.session_state.selected_concelhos
-    normalized_t  = [normalize(c) for c in concelhos]
-    incidents     = get_incidents()
-    now           = datetime.now().strftime("%H:%M")
+    concelhos    = st.session_state.selected_concelhos
+    normalized_t = [normalize(c) for c in concelhos]
+    incidents    = get_incidents()
+    now          = datetime.now().strftime("%H:%M")
+    ts           = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     filtered   = [
         inc for inc in incidents
@@ -238,12 +310,14 @@ def poll():
     ]
     new_states = {str(inc["id"]): inc for inc in filtered}
     old_states = st.session_state.incident_states
+    new_entries = []
 
     # Novos incidentes
     for iid, inc in new_states.items():
         if iid not in old_states:
             msg = format_new(inc)
-            st.session_state.log.insert(0, {"type": "new", "time": now, "msg": msg, "inc": inc})
+            entry = {"type": "new", "time": now, "timestamp": ts, "msg": msg, "inc": inc}
+            new_entries.append(entry)
             send_discord(msg)
 
     # Mudanças de estado
@@ -253,30 +327,65 @@ def poll():
             new_s = inc.get("status")
             if old_s != new_s:
                 msg = format_status(inc, old_s, new_s, now)
-                st.session_state.log.insert(0, {"type": "status", "time": now, "msg": msg, "inc": inc})
+                entry = {"type": "status", "time": now, "timestamp": ts, "msg": msg, "inc": inc}
+                new_entries.append(entry)
                 send_discord(msg)
 
-    # Resolvidos / desaparecidos da lista ativa
+    # Resolvidos
     for iid, inc in old_states.items():
         if iid not in new_states and inc.get("status") not in ["Extinção", "Conclusão"]:
             msg = format_resolved(inc, now)
-            st.session_state.log.insert(0, {"type": "resolved", "time": now, "msg": msg, "inc": inc})
+            entry = {"type": "resolved", "time": now, "timestamp": ts, "msg": msg, "inc": inc}
+            new_entries.append(entry)
             send_discord(msg)
 
+    # Actualiza session_state
     st.session_state.incident_states = new_states
     st.session_state.last_refresh    = datetime.now().strftime("%H:%M:%S")
-    st.session_state.log             = st.session_state.log[:200]
+
+    if new_entries:
+        st.session_state.log = new_entries + st.session_state.log
+        st.session_state.log = st.session_state.log[:500]
+
+        # ── Persistir log no GitHub ──────────────────────────────────────────
+        if github_configured():
+            ok = gh_write(
+                GH_LOG_PATH,
+                st.session_state.log,
+                st.session_state.get("log_sha"),
+                f"chore: {len(new_entries)} novo(s) evento(s) — {ts}",
+            )
+            if ok:
+                # Actualizar sha para o próximo write não falhar com conflito
+                _, new_sha = gh_read(GH_LOG_PATH)
+                st.session_state.log_sha = new_sha
+
+    # ── Persistir estado activo no GitHub (sempre, para sobreviver a restarts) ──
+    if github_configured():
+        ok = gh_write(
+            GH_STATE_PATH,
+            st.session_state.incident_states,
+            st.session_state.get("incident_states_sha"),
+            f"chore: estado atualizado — {ts}",
+        )
+        if ok:
+            _, new_sha = gh_read(GH_STATE_PATH)
+            st.session_state.incident_states_sha = new_sha
 
 
 # ─── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("## ⚙️ Configurações")
 
-    # Estado do webhook (apenas indica se está configurado, nunca mostra o valor)
     if WEBHOOK_URL:
-        st.markdown('<div class="discord-status discord-ok">✅ Discord configurado</div>', unsafe_allow_html=True)
+        st.markdown('<div class="status-badge badge-ok">✅ Discord configurado</div>', unsafe_allow_html=True)
     else:
-        st.markdown('<div class="discord-status discord-off">⚠️ Discord não configurado<br><small>Adicione DISCORD_WEBHOOK_URL aos Secrets</small></div>', unsafe_allow_html=True)
+        st.markdown('<div class="status-badge badge-off">⚠️ Discord não configurado</div>', unsafe_allow_html=True)
+
+    if github_configured():
+        st.markdown(f'<div class="status-badge badge-ok">✅ GitHub: <code>{GH_REPO}</code></div>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="status-badge badge-warn">⚠️ GitHub não configurado<br><small>Registo não será persistido</small></div>', unsafe_allow_html=True)
 
     st.divider()
     st.markdown("**Concelhos monitorizados**")
@@ -285,10 +394,7 @@ with st.sidebar:
         if st.checkbox(c, value=True, key=f"cb_{c}"):
             selected.append(c)
 
-    custom = st.text_input(
-        "Adicionar concelho",
-        placeholder="ex: Chaves, Valpaços",
-    )
+    custom = st.text_input("Adicionar concelho", placeholder="ex: Chaves, Valpaços")
     if custom:
         for item in custom.split(","):
             item = item.strip()
@@ -313,7 +419,7 @@ with st.sidebar:
         poll()
         st.rerun()
 
-    if st.button("🗑️ Limpar registo", use_container_width=True):
+    if st.button("🗑️ Limpar registo local", use_container_width=True):
         st.session_state.log = []
         st.rerun()
 
@@ -329,10 +435,10 @@ with col_time:
         )
 
 # ─── Métricas ──────────────────────────────────────────────────────────────────
-active      = st.session_state.incident_states
-total_ops   = sum(int(i.get("man",     0) or 0) for i in active.values())
-total_trucks= sum(int(i.get("terrain", 0) or 0) for i in active.values())
-total_aerial= sum(int(i.get("aerial",  0) or 0) for i in active.values())
+active       = st.session_state.incident_states
+total_ops    = sum(int(i.get("man",     0) or 0) for i in active.values())
+total_trucks = sum(int(i.get("terrain", 0) or 0) for i in active.values())
+total_aerial = sum(int(i.get("aerial",  0) or 0) for i in active.values())
 
 m1, m2, m3, m4 = st.columns(4)
 for col, val, label in [
@@ -377,12 +483,13 @@ else:
 # ─── Registo de Eventos ────────────────────────────────────────────────────────
 st.markdown("## Registo de eventos")
 if not st.session_state.log:
-    st.info("Nenhum evento registado nesta sessão.")
+    st.info("Nenhum evento registado.")
 else:
-    for entry in st.session_state.log[:50]:
+    for entry in st.session_state.log[:100]:
         icon = {"new": "🔥", "status": "🔄", "resolved": "✅"}.get(entry["type"], "ℹ️")
+        ts_label = entry.get("timestamp", entry.get("time", ""))
         with st.expander(
-            f"{icon} [{entry['time']}] {entry['inc'].get('location','N/A')} — {entry['inc'].get('concelho','N/A')}"
+            f"{icon} [{ts_label}] {entry['inc'].get('location','N/A')} — {entry['inc'].get('concelho','N/A')}"
         ):
             st.code(entry["msg"], language=None)
 
